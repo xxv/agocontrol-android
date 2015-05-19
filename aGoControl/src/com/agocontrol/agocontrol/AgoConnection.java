@@ -64,7 +64,7 @@ public class AgoConnection {
 		          "Number of entries " + inv.length());
             // Log.i(AgoConnection.class.getName(), "Contents: " + inv);
 
-			if (inv.length() == 2) {
+            if (inv.has(RESULT_DATA)) {
                 // new style reply
                 inv = inv.getJSONObject(RESULT_DATA);
                 Log.i(AgoConnection.class.getName(), "Newresult number of entries: " + inv.length());
@@ -182,8 +182,8 @@ public class AgoConnection {
             String frame;
 
             JSONObject result = client.callJSONObject("message", params);
-            if (result.has("data")) {
-                JSONObject data = result.getJSONObject("data");
+            if (result.has(RESULT_DATA)) {
+                JSONObject data = result.getJSONObject(RESULT_DATA);
                 frame = data.getString("image");
             } else {
                 frame = result.getString("image");
