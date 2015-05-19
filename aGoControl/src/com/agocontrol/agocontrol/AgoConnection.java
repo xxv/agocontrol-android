@@ -30,6 +30,8 @@ public class AgoConnection {
 	Double schemaVersion;
 	ArrayList<AgoDevice> deviceList;
 	JSONRPCClient client;
+	public static String RESULT = "result";
+    public static String RESULT_DATA = "data";
 	public static String SCHEMA = "schema";
 	public static String SCHEMA_VERSION = "version";
 	public static String DEVICES = "devices";
@@ -57,53 +59,63 @@ public class AgoConnection {
 	public void getDevices() {
 		inventory = getInventory();
 		try {
-		      JSONObject inv = new JSONObject(inventory);
-		      Log.i(AgoConnection.class.getName(),
+            JSONObject inv = new JSONObject(inventory);
+            Log.i(AgoConnection.class.getName(),
 		          "Number of entries " + inv.length());
-		      JSONObject schema = inv.getJSONObject(SCHEMA);
-		      schemaVersion = schema.getDouble(SCHEMA_VERSION);
-		      System.out.println("schema version: " + schemaVersion);
+            // Log.i(AgoConnection.class.getName(), "Contents: " + inv);
+
+			if (inv.length() == 2) {
+                // new style reply
+                inv = inv.getJSONObject(RESULT_DATA);
+                Log.i(AgoConnection.class.getName(), "Newresult number of entries: " + inv.length());
+            }
+            // schema = data.getJSONObject(SCHEMA);
+
+            JSONObject schema = inv.getJSONObject(SCHEMA);
+
+            schemaVersion = schema.getDouble(SCHEMA_VERSION);
+            System.out.println("schema version: " + schemaVersion);
 		      
-		      JSONObject devices = inv.getJSONObject(DEVICES);
-		      Log.i(AgoConnection.class.getName(),
+            JSONObject devices = inv.getJSONObject(DEVICES);
+            Log.i(AgoConnection.class.getName(),
 			          "Number of devices: " + devices.length());
-		      Iterator<?> iter = devices.keys();
-		      while (iter.hasNext()) {
-		    	  String deviceUuid = (String)iter.next();
-		    	  // System.out.println("UUid: " + deviceUuid);
-		    	  JSONObject device = devices.getJSONObject(deviceUuid);
-		    	  String deviceType = device.getString(DEVICE_TYPE);
-		    	  String deviceName = device.getString(DEVICE_NAME);
-		    	  String deviceRoom = device.getString(DEVICE_ROOM);
+            Iterator<?> iter = devices.keys();
+            while (iter.hasNext()) {
+                String deviceUuid = (String)iter.next();
+                // System.out.println("UUid: " + deviceUuid);
+                JSONObject device = devices.getJSONObject(deviceUuid);
+                String deviceType = device.getString(DEVICE_TYPE);
+                String deviceName = device.getString(DEVICE_NAME);
+                String deviceRoom = device.getString(DEVICE_ROOM);
 		    	  
-		    	  if (deviceName != null && deviceName.length() > 0 && !deviceType.equals("event")) {
-		    		  String roomName = null;
-		    		  JSONObject rooms = inv.getJSONObject(ROOMS);
-		    		  Iterator<?> roomit = rooms.keys();
+                if (deviceName != null && deviceName.length() > 0 && !deviceType.equals("event")) {
+                    String roomName = null;
+                    JSONObject rooms = inv.getJSONObject(ROOMS);
+                    Iterator<?> roomit = rooms.keys();
 		    		  
-		    		  while (roomit.hasNext()) {
-		    			  	String roomUuid = (String)roomit.next();
-		    			  	if (roomUuid.equals(deviceRoom)) {
-		    			  		// System.out.println("matched room");
-		    			  		JSONObject room = rooms.getJSONObject(roomUuid);
-		    			  		roomName = room.getString(DEVICE_NAME);
-		    			  	}
-		    		  }
-		    		  UUID tmpUuid = UUID.fromString(deviceUuid);
-		    		  AgoDevice newDevice = new AgoDevice(tmpUuid, deviceType);
-		    		  if (roomName != null && roomName.length() > 0) {
-		    			  newDevice.setName(roomName + " - " + deviceName);
-		    		  } else {
-		    			  newDevice.setName(deviceName);
-		    		  }
-		    		  newDevice.setConnection(this);
-		    		  deviceList.add(newDevice);
-		    	  }
-		      }
+                    while (roomit.hasNext()) {
+                        String roomUuid = (String)roomit.next();
+                        if (roomUuid.equals(deviceRoom)) {
+                            // System.out.println("matched room");
+                            JSONObject room = rooms.getJSONObject(roomUuid);
+                            roomName = room.getString(DEVICE_NAME);
+                        }
+                    }
+                    UUID tmpUuid = UUID.fromString(deviceUuid);
+                    AgoDevice newDevice = new AgoDevice(tmpUuid, deviceType);
+                    if (roomName != null && roomName.length() > 0) {
+                        newDevice.setName(roomName + " - " + deviceName);
+                    } else {
+                        newDevice.setName(deviceName);
+                    }
+                    newDevice.setConnection(this);
+                    deviceList.add(newDevice);
+                }
+            }
 		     
-		    } catch (Exception e) {
-		      e.printStackTrace();
-		    }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 	}
 	
 	public boolean sendCommand(UUID uuid, String command) {
