@@ -178,9 +178,17 @@ public class AgoConnection {
 	    	agocommand.put("uuid", uuid.toString());
 	    	JSONObject params = new JSONObject();
 	    	params.put("content", agocommand); 
-	    	JSONObject result = client.callJSONObject("message", params);
-	    	String frame = result.getString("image");
-	    	return Base64.decode(frame, Base64.DEFAULT);
+
+            String frame;
+
+            JSONObject result = client.callJSONObject("message", params);
+            if (result.has("data")) {
+                JSONObject data = result.getJSONObject("data");
+                frame = data.getString("image");
+            } else {
+                frame = result.getString("image");
+            }
+            return Base64.decode(frame, Base64.DEFAULT);
 	    } catch (JSONRPCException e) {
     	  e.printStackTrace();
 	    } catch (JSONException e) {
