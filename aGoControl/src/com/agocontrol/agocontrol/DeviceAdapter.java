@@ -66,22 +66,34 @@ public class DeviceAdapter extends BaseAdapter {
 		AgoDevice device = (AgoDevice)getItem(position);
 		ViewHolder holder = (ViewHolder)v.getTag();
 		holder.deviceName.setText(device.name);
-		
-		if (device.deviceType.equalsIgnoreCase("switch")) {
-			holder.deviceType.setImageResource(R.drawable.ic_on_off);
-		} else if (device.deviceType.equalsIgnoreCase("dimmer")) {
-			holder.deviceType.setImageResource(R.drawable.ic_dimmer);
-		} else if (device.deviceType.equalsIgnoreCase("camera")) {
-			holder.deviceType.setImageResource(R.drawable.ic_camera);
-		} else if (device.deviceType.equalsIgnoreCase("zwavecontroller")) {
-			holder.deviceType.setImageResource(R.drawable.ic_zwave_controller);
-		} else if (device.deviceType.equalsIgnoreCase("controller")) {
-			holder.deviceType.setImageResource(R.drawable.ic_zwave_controller);
-		} else if (device.deviceType.equalsIgnoreCase("scenario")) {
-			holder.deviceType.setImageResource(R.drawable.ic_launcher);
-		} else {
-			holder.deviceType.setImageResource(R.drawable.ic_unknown);
-		}
+
+        if (device.deviceType.equalsIgnoreCase("switch")) {
+            holder.deviceType.setImageResource(R.drawable.ic_on_off);
+        } else if (device.deviceType.equalsIgnoreCase("dimmer")) {
+            holder.deviceType.setImageResource(R.drawable.ic_dimmer);
+        } else if (device.deviceType.equalsIgnoreCase("camera")) {
+            holder.deviceType.setImageResource(R.drawable.ic_camera);
+        } else if (device.deviceType.equalsIgnoreCase("zwavecontroller")) {
+            holder.deviceType.setImageResource(R.drawable.ic_zwave_controller);
+        } else if (device.deviceType.equalsIgnoreCase("controller")) {
+            holder.deviceType.setImageResource(R.drawable.ic_zwave_controller);
+        } else if (device.handledBy.equalsIgnoreCase("coolautomationnet")) {
+            holder.deviceType.setImageResource(R.drawable.ic_coolautomation);
+        } else if (device.handledBy.equalsIgnoreCase("mysensors")) {
+            holder.deviceType.setImageResource(R.drawable.ic_mysensors);
+        } else if (device.deviceInternalID.equalsIgnoreCase("rain")) {
+            holder.deviceType.setImageResource(R.drawable.ic_rain);
+        } else if (device.deviceInternalID.equalsIgnoreCase("dewpoint")) {
+            holder.deviceType.setImageResource(R.drawable.ic_umbrella);
+        } else if (device.deviceInternalID.equalsIgnoreCase("temp")) {
+            holder.deviceType.setImageResource(R.drawable.ic_thermometer);
+        } else if (device.handledBy.equalsIgnoreCase("weather")) {
+            holder.deviceType.setImageResource(R.drawable.ic_humidity);
+        } else if ((device.deviceType.equalsIgnoreCase("scenario")) || (device.handledBy.equalsIgnoreCase("resolver"))) {
+            holder.deviceType.setImageResource(R.drawable.ic_launcher);
+        } else {
+            holder.deviceType.setImageResource(R.drawable.ic_unknown);
+        }
 		
 				
 		return v;
