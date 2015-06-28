@@ -55,8 +55,7 @@ public class MainActivity extends ListActivity {
 	private ListView lv;
 	String agoHostname = "";
 	String agoPort = "";
-	long timeDifference;
-
+	
 	private ImageView mVideoFrame;
 	
 	ProgressDialog progDlg;
@@ -296,14 +295,12 @@ public class MainActivity extends ListActivity {
          final LinearLayout llOnOff = (LinearLayout)dialog.findViewById(R.id.llOnOff);
          final LinearLayout llCamera = (LinearLayout)dialog.findViewById(R.id.llCamera);
          final FrameLayout flDimmer = (FrameLayout)dialog.findViewById(R.id.flDimmer);
-         final FrameLayout myText = (FrameLayout)dialog.findViewById(R.id.flText);
          final SeekBar sbSetLevel = (SeekBar)dialog.findViewById(R.id.sbSetLevel);
          final Button btnGetVideoFrame = (Button)dialog.findViewById(R.id.btnGetVideoFrame);
          final Button btnRunScenario = (Button)dialog.findViewById(R.id.btnRunScenario);
          final Button btnOn = (Button)dialog.findViewById(R.id.btnOn);
          final Button btnOff = (Button)dialog.findViewById(R.id.btnOff);
          final TextView tvLevel = (TextView)dialog.findViewById(R.id.tvLevel);
-         final TextView myDeviceText = (TextView)dialog.findViewById(R.id.myDeviceText);
          mVideoFrame = (ImageView)dialog.findViewById(R.id.ivVideoFrame);
          
          if (myDevice.deviceType.equalsIgnoreCase("switch") || myDevice.deviceType.equalsIgnoreCase("dimmer") ) {
@@ -311,17 +308,8 @@ public class MainActivity extends ListActivity {
         	 btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
         	 btnOff.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
          }
-
-        if (myDevice.handledBy.equalsIgnoreCase("Weather")) {
-            myText.setVisibility(View.VISIBLE);
-            myDeviceText.setVisibility(View.VISIBLE);
-            timeDifference = System.currentTimeMillis() / 1000 - Long.valueOf(myDevice.lastseen);
-//            myDeviceText.setText("Temperature: " + myDevice.deviceValues.get(0) + myDevice.deviceValues.get(1) + "\nRel. Humidity: " + myDevice.deviceValues.get(2) + myDevice.deviceValues.get(3) + "\nWindchill: " + myDevice.deviceValues.get(7) + myDevice.deviceValues.get(8) + "\nDewpoint: " + myDevice.deviceValues.get(13) + myDevice.deviceValues.get(14) + "\nWindspeed: " + myDevice.deviceValues.get(4) + " " + myDevice.deviceValues.get(5) + "\nWind Direction: " + myDevice.deviceValues.get(6) + "\nPressure: " + myDevice.deviceValues.get(9) + " " + myDevice.deviceValues.get(10) + "\nVisibility: " + myDevice.deviceValues.get(11) + " " + myDevice.deviceValues.get(12) + "\nUpdated: " + timeDifference + "s ago.");
-            myDeviceText.setText("Temperature: " + myDevice.deviceValues.get(0) + "\nInfo is " + timeDifference + "s old.");
-
-        }
-
-            if (myDevice.deviceType.equalsIgnoreCase("dimmer")) {
+         
+         if (myDevice.deviceType.equalsIgnoreCase("dimmer")) {
         	 llOnOff.setVisibility(View.VISIBLE);
         	 flDimmer.setVisibility(View.VISIBLE);
         	 btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
