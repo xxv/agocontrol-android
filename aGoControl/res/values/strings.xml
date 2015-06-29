@@ -11,6 +11,9 @@
 	<string name="no_devices">No Devices</string>
 	<string name="on">On</string>
 	<string name="off">Off</string>
+    <string name="open">Open</string>
+    <string name="close">Close</string>
+    <string name="stop">Stop</string>
 	<string name="get_frame">Get Video Frame</string>
 	<string name="run_scenario">Run Scenario</string>
 	<string name="retrieving_video_frame">Retrieving Video Frame...</string>

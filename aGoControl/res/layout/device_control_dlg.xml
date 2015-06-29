@@ -88,4 +88,33 @@
         android:text="@string/run_scenario"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:id="@+id/llDrapes"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/open"
+            android:id="@+id/btnOpen"
+            android:layout_weight="1" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/close"
+            android:id="@+id/btnClose"
+            android:layout_weight="1" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/stop"
+            android:id="@+id/btnStop"
+            android:layout_weight="1" />
+    </LinearLayout>
+
 </LinearLayout>

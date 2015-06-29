@@ -283,34 +283,47 @@ public class MainActivity extends ListActivity {
 
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
-		
-		 final AgoDevice myDevice = deviceList.get(position);
-		 Log.i(TAG, "clicked uuid " + myDevice.uuid.toString());
-         final Dialog dialog = new Dialog(MainActivity.this);
-         dialog.setTitle(myDevice.getName());
-         dialog.setContentView(R.layout.device_control_dlg);
-         dialog.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-         
-         //show/hide views based on device type
-         final LinearLayout llOnOff = (LinearLayout)dialog.findViewById(R.id.llOnOff);
-         final LinearLayout llCamera = (LinearLayout)dialog.findViewById(R.id.llCamera);
-         final FrameLayout flDimmer = (FrameLayout)dialog.findViewById(R.id.flDimmer);
-         final SeekBar sbSetLevel = (SeekBar)dialog.findViewById(R.id.sbSetLevel);
-         final Button btnGetVideoFrame = (Button)dialog.findViewById(R.id.btnGetVideoFrame);
-         final Button btnRunScenario = (Button)dialog.findViewById(R.id.btnRunScenario);
-         final Button btnOn = (Button)dialog.findViewById(R.id.btnOn);
-         final Button btnOff = (Button)dialog.findViewById(R.id.btnOff);
-         final TextView tvLevel = (TextView)dialog.findViewById(R.id.tvLevel);
-         mVideoFrame = (ImageView)dialog.findViewById(R.id.ivVideoFrame);
-         
-         if (myDevice.deviceType.equalsIgnoreCase("switch") || myDevice.deviceType.equalsIgnoreCase("dimmer") ) {
-        	 llOnOff.setVisibility(View.VISIBLE);
-        	 btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
-        	 btnOff.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
-         }
-         
-         if (myDevice.deviceType.equalsIgnoreCase("dimmer")) {
-        	 llOnOff.setVisibility(View.VISIBLE);
+
+        final AgoDevice myDevice = deviceList.get(position);
+        Log.i(TAG, "clicked uuid " + myDevice.uuid.toString());
+        final Dialog dialog = new Dialog(MainActivity.this);
+        dialog.setTitle(myDevice.getName());
+        dialog.setContentView(R.layout.device_control_dlg);
+        dialog.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+
+        //show/hide views based on device type
+        final LinearLayout llOnOff = (LinearLayout) dialog.findViewById(R.id.llOnOff);
+        final LinearLayout llDrapes = (LinearLayout) dialog.findViewById(R.id.llDrapes);
+
+        final LinearLayout llCamera = (LinearLayout) dialog.findViewById(R.id.llCamera);
+        final FrameLayout flDimmer = (FrameLayout) dialog.findViewById(R.id.flDimmer);
+        final SeekBar sbSetLevel = (SeekBar) dialog.findViewById(R.id.sbSetLevel);
+        final Button btnGetVideoFrame = (Button) dialog.findViewById(R.id.btnGetVideoFrame);
+        final Button btnRunScenario = (Button) dialog.findViewById(R.id.btnRunScenario);
+        final Button btnOn = (Button) dialog.findViewById(R.id.btnOn);
+        final Button btnOff = (Button) dialog.findViewById(R.id.btnOff);
+        final Button btnOpen = (Button) dialog.findViewById(R.id.btnOpen);
+        final Button btnClose = (Button) dialog.findViewById(R.id.btnClose);
+        final Button btnStop = (Button) dialog.findViewById(R.id.btnStop);
+        final TextView tvLevel = (TextView) dialog.findViewById(R.id.tvLevel);
+        mVideoFrame = (ImageView) dialog.findViewById(R.id.ivVideoFrame);
+
+        if (myDevice.deviceType.equalsIgnoreCase("switch")) {
+            llOnOff.setVisibility(View.VISIBLE);
+            btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
+            btnOff.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
+        } else if (myDevice.deviceType.equalsIgnoreCase("drapes")) {
+            llDrapes.setVisibility(View.VISIBLE);
+            flDimmer.setVisibility(View.VISIBLE);
+
+            btnOpen.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
+            btnClose.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
+            btnStop.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "stop"));
+
+            sbSetLevel.setOnSeekBarChangeListener(new AgoDeviceSetLevelListener(myDevice));
+
+        } else if (myDevice.deviceType.equalsIgnoreCase("dimmer")) {
+            llOnOff.setVisibility(View.VISIBLE);
         	 flDimmer.setVisibility(View.VISIBLE);
         	 btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
         	 btnOff.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
@@ -323,8 +336,8 @@ public class MainActivity extends ListActivity {
 			
 				@Override
 				public void onClick(View v) {
-					new getVideoFrame().execute(new Object[] {(Context)MainActivity.this, myDevice});
-				}
+                    new getVideoFrame().execute((Context) MainActivity.this, myDevice);
+                }
 			});
          } else if (myDevice.deviceType.equalsIgnoreCase("scenario")) {
         	 btnRunScenario.setVisibility(View.VISIBLE);
