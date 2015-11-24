@@ -1,218 +1,176 @@
 package com.agocontrol.agocontrol;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import android.util.Base64;
+import android.util.Log;
+
+import org.alexd.jsonrpc.JSONRPCClient;
+import org.alexd.jsonrpc.JSONRPCException;
+import org.alexd.jsonrpc.JSONRPCParams;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.UUID;
 
-import org.alexd.jsonrpc.*;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import android.util.Base64;
-import android.util.Log;
-
 public class AgoConnection {
-	String host;
-	String port;
-	String inventory;
-	Double schemaVersion;
-	ArrayList<AgoDevice> deviceList;
-	JSONRPCClient client;
-	public static String RESULT = "result";
+    private static final String TAG = AgoConnection.class.getSimpleName();
+
+    String host;
+    String port;
+    String inventory;
+    Double schemaVersion;
+    ArrayList<AgoDevice> deviceList;
+    JSONRPCClient client;
+    public static String RESULT = "result";
     public static String RESULT_DATA = "data";
-	public static String SCHEMA = "schema";
-	public static String SCHEMA_VERSION = "version";
-	public static String DEVICES = "devices";
-	public static String ROOMS = "rooms";
-	public static String DEVICE_TYPE = "devicetype";
-	public static String DEVICE_ROOM = "room";
-	public static String DEVICE_STATE = "state";
-	public static String DEVICE_NAME = "name";
-	
-	public AgoConnection(String host, String port) {
-		this.host = host;
-		this.port = port;
-		System.out.println(host + ":" + port);
-		client = JSONRPCClient.create("http://" + host + ":" + port + "/jsonrpc", JSONRPCParams.Versions.VERSION_2);
-		client.setConnectionTimeout(2000);
-		client.setSoTimeout(2000);
-		deviceList = new ArrayList<AgoDevice>();
-		getDevices();
-	}
-	
-	public ArrayList<AgoDevice> getDeviceList() {
-		return deviceList;
-	}
-	
-	public void getDevices() {
-		inventory = getInventory();
-		try {
-            JSONObject inv = new JSONObject(inventory);
-            Log.i(AgoConnection.class.getName(),
-		          "Number of entries " + inv.length());
-            // Log.i(AgoConnection.class.getName(), "Contents: " + inv);
+    public static String SCHEMA = "schema";
+    public static String SCHEMA_VERSION = "version";
+    public static String DEVICES = "devices";
+    public static String ROOMS = "rooms";
+    public static String DEVICE_TYPE = "devicetype";
+    public static String DEVICE_ROOM = "room";
+    public static String DEVICE_STATE = "state";
+    public static String DEVICE_NAME = "name";
+    public static String DEVICE_TYPE_EVENT = "event";
 
-            if (inv.has(RESULT_DATA)) {
-                // new style reply
-                inv = inv.getJSONObject(RESULT_DATA);
-                Log.i(AgoConnection.class.getName(), "Newresult number of entries: " + inv.length());
-            }
-            // schema = data.getJSONObject(SCHEMA);
+    public AgoConnection(final String host, final String port) {
+        this.host = host;
+        this.port = port;
+        Log.i(TAG, host + ':' + port);
+        client = JSONRPCClient.create("http://" + host + ':' + port + "/jsonrpc", JSONRPCParams.Versions.VERSION_2);
+        client.setConnectionTimeout(2000);
+        client.setSoTimeout(2000);
+    }
 
-            JSONObject schema = inv.getJSONObject(SCHEMA);
-
-            schemaVersion = schema.getDouble(SCHEMA_VERSION);
-            System.out.println("schema version: " + schemaVersion);
-		      
-            JSONObject devices = inv.getJSONObject(DEVICES);
-            Log.i(AgoConnection.class.getName(),
-			          "Number of devices: " + devices.length());
-            Iterator<?> iter = devices.keys();
-            while (iter.hasNext()) {
-                String deviceUuid = (String)iter.next();
-                // System.out.println("UUid: " + deviceUuid);
-                JSONObject device = devices.getJSONObject(deviceUuid);
-                String deviceType = device.getString(DEVICE_TYPE);
-                String deviceName = device.getString(DEVICE_NAME);
-                String deviceRoom = device.getString(DEVICE_ROOM);
-		    	  
-                if (deviceName != null && deviceName.length() > 0 && !deviceType.equals("event")) {
-                    String roomName = null;
-                    JSONObject rooms = inv.getJSONObject(ROOMS);
-                    Iterator<?> roomit = rooms.keys();
-		    		  
-                    while (roomit.hasNext()) {
-                        String roomUuid = (String)roomit.next();
-                        if (roomUuid.equals(deviceRoom)) {
-                            // System.out.println("matched room");
-                            JSONObject room = rooms.getJSONObject(roomUuid);
-                            roomName = room.getString(DEVICE_NAME);
-                        }
-                    }
-                    UUID tmpUuid = UUID.fromString(deviceUuid);
-                    AgoDevice newDevice = new AgoDevice(tmpUuid, deviceType);
-                    if (roomName != null && roomName.length() > 0) {
-                        newDevice.setName(roomName + " - " + deviceName);
-                    } else {
-                        newDevice.setName(deviceName);
-                    }
-                    newDevice.setConnection(this);
-                    deviceList.add(newDevice);
-                }
-            }
-		     
-        } catch (Exception e) {
-            e.printStackTrace();
+    public ArrayList<AgoDevice> getDeviceList() throws JSONRPCException, JSONException {
+        if (deviceList == null) {
+            getDevices();
         }
-	}
-	
-	public boolean sendCommand(UUID uuid, String command) {
-	    try {
-	    	JSONObject agocommand = new JSONObject();
-	    	agocommand.put("command", command);
-	    	agocommand.put("uuid", uuid.toString());
-	    	JSONObject params = new JSONObject();
-	    	params.put("content", agocommand); 
-	    	JSONObject result = client.callJSONObject("message", params);
-	    	return true;
-	    } catch (JSONRPCException e) {
-	    	  e.printStackTrace();
-	    } catch (JSONException e) {
-	    		e.printStackTrace();
-		}
-		return false;
-	}
-	
-	public boolean sendEvent(String subject, String data) {
-		try {
-	    	JSONObject agoevent = new JSONObject();
-	    	agoevent.put("data", data);
-	    	JSONObject params = new JSONObject();
-	    	params.put("content", agoevent);
-	    	params.put("subject", subject); 
-	    	JSONObject result = client.callJSONObject("message", params);
-	    	return true;
-	    } catch (JSONRPCException e) {
-	    	  e.printStackTrace();
-	    } catch (JSONException e) {
-	    		e.printStackTrace();
-		}
-		return false;
-	
-	}
-	
-	public boolean setDeviceLevel(UUID uuid, String level) {
-	    try {
-	    	JSONObject agocommand = new JSONObject();
-	    	agocommand.put("command", "setlevel");
-	    	agocommand.put("level", level);
-	    	agocommand.put("uuid", uuid.toString());
-	    	JSONObject params = new JSONObject();
-	    	params.put("content", agocommand); 
-	    	JSONObject result = client.callJSONObject("message", params);
-	    	return true;
-	    } catch (JSONRPCException e) {
-	    	  e.printStackTrace();
-	    } catch (JSONException e) {
-	    		e.printStackTrace();
-		}
-	    return false;
-	}
-	
-	public byte[] getVideoFrame(UUID uuid) {
-	    try {
-	    	JSONObject agocommand = new JSONObject();
-	    	agocommand.put("command", "getvideoframe");
-	    	agocommand.put("uuid", uuid.toString());
-	    	JSONObject params = new JSONObject();
-	    	params.put("content", agocommand); 
 
-            String frame;
+        return deviceList;
+    }
 
-            JSONObject result = client.callJSONObject("message", params);
-            if (result.has(RESULT_DATA)) {
-                JSONObject data = result.getJSONObject(RESULT_DATA);
-                frame = data.getString("image");
-            } else {
-                frame = result.getString("image");
+    public void getDevices() throws JSONException, JSONRPCException {
+        inventory = getInventory();
+        JSONObject inv = new JSONObject(inventory);
+        Log.i(AgoConnection.class.getName(),
+                "Number of entries " + inv.length());
+        // Log.i(AgoConnection.class.getName(), "Contents: " + inv);
+
+        if (inv.has(RESULT_DATA)) {
+            // new style reply
+            inv = inv.getJSONObject(RESULT_DATA);
+            Log.i(AgoConnection.class.getName(), "Newresult number of entries: " + inv.length());
+        }
+        // schema = data.getJSONObject(SCHEMA);
+
+        final JSONObject schema = inv.getJSONObject(SCHEMA);
+
+        schemaVersion = schema.getDouble(SCHEMA_VERSION);
+        Log.d(TAG, "schema version: " + schemaVersion);
+
+        final JSONObject devices = inv.getJSONObject(DEVICES);
+        Log.i(AgoConnection.class.getName(),
+                "Number of devices: " + devices.length());
+        final Iterator<?> iter = devices.keys();
+        final ArrayList<AgoDevice> newDeviceList = new ArrayList<>();
+        while (iter.hasNext()) {
+            final String deviceUuid = (String) iter.next();
+            // Log.d(TAG, "UUid: " + deviceUuid);
+            final JSONObject device = devices.getJSONObject(deviceUuid);
+            final String deviceType = device.getString(DEVICE_TYPE);
+            final String deviceName = device.getString(DEVICE_NAME);
+            final String deviceRoom = device.getString(DEVICE_ROOM);
+
+            if (deviceName != null && deviceName.length() > 0
+                    && !deviceType.equals(DEVICE_TYPE_EVENT)) {
+                String roomName = null;
+                final JSONObject rooms = inv.getJSONObject(ROOMS);
+                final Iterator<?> roomit = rooms.keys();
+
+                while (roomit.hasNext()) {
+                    final String roomUuid = (String) roomit.next();
+                    if (roomUuid.equals(deviceRoom)) {
+                        // Log.d(TAG, "matched room");
+                        final JSONObject room = rooms.getJSONObject(roomUuid);
+                        roomName = room.getString(DEVICE_NAME);
+                    }
+                }
+                final UUID tmpUuid = UUID.fromString(deviceUuid);
+                final AgoDevice newDevice = new AgoDevice(tmpUuid, deviceType);
+                if (roomName != null && roomName.length() > 0) {
+                    newDevice.setName(roomName + " - " + deviceName);
+                } else {
+                    newDevice.setName(deviceName);
+                }
+                newDevice.setConnection(this);
+                newDeviceList.add(newDevice);
             }
-            return Base64.decode(frame, Base64.DEFAULT);
-	    } catch (JSONRPCException e) {
-    	  e.printStackTrace();
-	    } catch (JSONException e) {
-    		e.printStackTrace();
-	    }
-		return null;
-	}
-	
-	
-	private String getInventory() {
-	    StringBuilder builder = new StringBuilder();
-	    try {
-	    	JSONObject command = new JSONObject();
-	    	command.put("command", "inventory");
-	    	JSONObject params = new JSONObject();
-	    	params.put("content", command); 
-	    	JSONObject result = client.callJSONObject("message", params);
-	    	builder.append(result.toString());
-	    } catch (JSONRPCException e) {
-	    	  e.printStackTrace();
-	    } catch (JSONException e) {
-	    		e.printStackTrace();
-		}
-	    return builder.toString();
-	}
+        }
+        deviceList = newDeviceList;
+    }
+
+    public void sendCommand(final UUID uuid, final String command) throws JSONRPCException, JSONException {
+        final JSONObject agocommand = new JSONObject();
+        agocommand.put("command", command);
+        agocommand.put("uuid", uuid.toString());
+        final JSONObject params = new JSONObject();
+        params.put("content", agocommand);
+        final JSONObject result = client.callJSONObject("message", params);
+    }
+
+    public void sendEvent(final String subject, final String data) throws JSONRPCException,
+            JSONException {
+        final JSONObject agoevent = new JSONObject();
+        agoevent.put("data", data);
+        final JSONObject params = new JSONObject();
+        params.put("content", agoevent);
+        params.put("subject", subject);
+        final JSONObject result = client.callJSONObject("message", params);
+
+    }
+
+    public void setDeviceLevel(final UUID uuid, final String level) throws JSONRPCException,
+            JSONException {
+        final JSONObject agocommand = new JSONObject();
+        agocommand.put("command", "setlevel");
+        agocommand.put("level", level);
+        agocommand.put("uuid", uuid.toString());
+        final JSONObject params = new JSONObject();
+        params.put("content", agocommand);
+        final JSONObject result = client.callJSONObject("message", params);
+    }
+
+    public byte[] getVideoFrame(final UUID uuid) throws JSONRPCException, JSONException {
+        final JSONObject agocommand = new JSONObject();
+        agocommand.put("command", "getvideoframe");
+        agocommand.put("uuid", uuid.toString());
+        final JSONObject params = new JSONObject();
+        params.put("content", agocommand);
+
+        final String frame;
+
+        final JSONObject result = client.callJSONObject("message", params);
+        if (result.has(RESULT_DATA)) {
+            final JSONObject data = result.getJSONObject(RESULT_DATA);
+            frame = data.getString("image");
+        } else {
+            frame = result.getString("image");
+        }
+        return Base64.decode(frame, Base64.DEFAULT);
+    }
+
+
+    private String getInventory() throws JSONRPCException, JSONException {
+        final StringBuilder builder = new StringBuilder();
+        final JSONObject command = new JSONObject();
+        command.put("command", "inventory");
+        final JSONObject params = new JSONObject();
+        params.put("content", command);
+        final JSONObject result = client.callJSONObject("message", params);
+        builder.append(result);
+        return builder.toString();
+    }
 
 }

@@ -17,5 +17,6 @@
 	<string name="get_frame">Get Video Frame</string>
 	<string name="run_scenario">Run Scenario</string>
 	<string name="retrieving_video_frame">Retrieving Video Frame...</string>
-	
+	<string name="menu_title_refresh">Refresh</string>
+
 </resources>

@@ -1,24 +1,13 @@
 package com.agocontrol.agocontrol;
 
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.ListActivity;
-import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.IntentFilter.MalformedMimeTypeException;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.nfc.NdefMessage;
-import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
@@ -26,13 +15,12 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.WindowManager.LayoutParams;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -40,252 +28,209 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.util.Log;
+
+import com.agocontrol.agocontrol.nfc.NdefReaderTask;
+
+import org.alexd.jsonrpc.JSONRPCException;
+import org.json.JSONException;
+
+import java.util.ArrayList;
 
 public class MainActivity extends ListActivity {
-	
-	private static final String TAG = MainActivity.class.getSimpleName();
-	public static final String MIME_TEXT_PLAIN = "text/plain";
-	
-	private NfcAdapter mNfcAdapter;
-	
-	AgoConnection connection;
-	ArrayList<AgoDevice> deviceList; 
-	DeviceAdapter deviceAdapter;
-	private ListView lv;
-	String agoHostname = "";
-	String agoPort = "";
-	
-	private ImageView mVideoFrame;
-	
-	ProgressDialog progDlg;
-	
-	static final private int MENU_PREFERENCES = Menu.FIRST + 1;
-	private static final int SHOW_PREFERENCES = 1;
-	
+
+    private static final String TAG = MainActivity.class.getSimpleName();
+    public static final String MIME_TEXT_PLAIN = "text/plain";
+
+    private NfcAdapter mNfcAdapter;
+
+    AgoConnection mConnection;
+    ArrayList<AgoDevice> deviceList;
+    DeviceAdapter deviceAdapter;
+    private ListView lv;
+
+    private ImageView mVideoFrame;
+
+    ProgressDialog progDlg;
+
+    private static final int SHOW_PREFERENCES = 1;
+    private String mAgoHostname;
+    private String mAgoPort;
+
     @Override
-    public void onCreate(Bundle savedInstanceState) {
+    public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         updateFromPreferences();
-                
-        deviceList = new ArrayList<AgoDevice>();
+
+        deviceList = new ArrayList<>();
         setContentView(R.layout.devices_list_view);
-        
+
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
-        
+
         if (mNfcAdapter != null) {
-        	
-        	if (!mNfcAdapter.isEnabled()) {
-        		// TODO: adapter is disabled
-        	} else {
-        		
-        		// we're good to go
-        	}
+
+            if (!mNfcAdapter.isEnabled()) {
+                // TODO: adapter is disabled
+            } else {
+
+                // we're good to go
+            }
         } else {
-        	// TODO: nfc not available
-        	
+            // TODO: nfc not available
+
         }
-        
+
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-    	super.onCreateOptionsMenu(menu);
-    	menu.add(0, MENU_PREFERENCES, Menu.NONE, R.string.menu_settings);
-        // getMenuInflater().inflate(R.menu.activity_main, menu);
+    public boolean onCreateOptionsMenu(final Menu menu) {
+        super.onCreateOptionsMenu(menu);
+        getMenuInflater().inflate(R.menu.activity_main, menu);
         return true;
     }
-    
-	@TargetApi(4)
-	@SuppressWarnings("rawtypes")
-	public boolean onOptionsItemSelected(MenuItem item) {
-    	super.onOptionsItemSelected(item);
-    	switch (item.getItemId()) {
-    		case (MENU_PREFERENCES): {
-    	 		Class c= Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB ? PreferencesActivity.class : FragmentPreferences.class;
-    			Intent i = new Intent(this, c);
-    			startActivityForResult(i, SHOW_PREFERENCES);
-    			return true;
-    		}
-    	}
-    	return false;
-    }
-    
-    private void updateFromPreferences() {
-    	Context context = getApplicationContext();
-    	SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-    	agoHostname = prefs.getString(PreferencesActivity.PREF_AGOCONTROL_HOSTNAME,  "192.168.80.2");
-    	agoPort = prefs.getString(PreferencesActivity.PREF_AGOCONTROL_PORT,  "8008");
-    	
-    }
 
-    public void onActivtyResult(int requestCode, int resultCode, Intent data) {
-    	super.onActivityResult(requestCode, resultCode, data);
-    	
-    	if (requestCode == SHOW_PREFERENCES)
-    		updateFromPreferences();
-
-    }
-    
-    private class openConnection extends AsyncTask <Void, Void, Void> {
-
-		@Override
-		protected Void doInBackground(Void... params) {
-			Log.i(TAG, "Trying connection to " + agoHostname + ":" + agoPort);
-			connection = new AgoConnection(agoHostname, agoPort);
-			deviceList = connection.getDeviceList();
-			return null;
-		}
-
-		@Override
-		protected void onPostExecute(Void result) {
-			
-			deviceAdapter = new DeviceAdapter(MainActivity.this, deviceList);
-	        setListAdapter(deviceAdapter);
-			
-			if (progDlg != null) {
-				progDlg.dismiss();
-			}
-			progDlg = null;
-			
-			Log.i(TAG, deviceList.size() + " devices returned");
-		}
-
-		@Override
-		protected void onPreExecute() {
-			if (progDlg == null) {
-				progDlg = ProgressDialog.show(MainActivity.this, null, getString(R.string.opening_connection), true, true);
-			} else {
-				progDlg.show();
-			}
-		}
-    }
-
-	@Override
-	protected void onPause() {
-		stopForegroundDispatch(this, mNfcAdapter);
-		super.onPause();
-	}
-	
-	public static void stopForegroundDispatch(final Activity activity, NfcAdapter adapter) {
-		if (adapter != null) {
-			adapter.disableForegroundDispatch(activity);
-		}
-	}
-
-	
-	@Override
-	protected void onResume() {
-		super.onResume();
-		setupForegroundDispatch(this, mNfcAdapter);
-		new openConnection().execute();
-	}
-
-	@Override
-    protected void onNewIntent(Intent intent) {
-		handleIntent(intent);
-	}
-	private void handleIntent(Intent intent) {
-	    String action = intent.getAction();
-	    if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
-	        String type = intent.getType();
-	        if (MIME_TEXT_PLAIN.equals(type)) {
-	            Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-	            new NdefReaderTask().execute(tag);
-	        } else {
-	            Log.d(TAG, "Wrong mime type: " + type);
-	        }
-	    } else if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(action)) {
-	        // In case we would still use the Tech Discovered Intent
-	        Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-	        String[] techList = tag.getTechList();
-	        String searchedTech = Ndef.class.getName();
-	        for (String tech : techList) {
-	            if (searchedTech.equals(tech)) {
-	                new NdefReaderTask().execute(tag);
-	                break;
-	            }
-	        }
-	    }
-    }
-	
-	private class NdefReaderTask extends AsyncTask<Tag, Void, String> {
-	    @Override
-	    protected String doInBackground(Tag... params) {
-	        Tag tag = params[0];
-	        Ndef ndef = Ndef.get(tag);
-	        if (ndef == null) {
-	            // NDEF is not supported by this Tag.
-	            return null;
-	        }
-	        NdefMessage ndefMessage = ndef.getCachedNdefMessage();
-	        NdefRecord[] records = ndefMessage.getRecords();
-	        for (NdefRecord ndefRecord : records) {
-	            if (ndefRecord.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(ndefRecord.getType(), NdefRecord.RTD_TEXT)) {
-	                try {
-	                    
-	                    String text = readText(ndefRecord);
-	    	        	connection.sendEvent("event.proximity.ndef", text);
-	    	        	return text;
-	                } catch (UnsupportedEncodingException e) {
-	                    Log.e(TAG, "Unsupported Encoding", e);
-	                }
-	            }
-	        }
-	        return null;
-	    }
-	    private String readText(NdefRecord record) throws UnsupportedEncodingException {
-	        /*
-	         * See NFC forum specification for "Text Record Type Definition" at 3.2.1
-	         *
-	         * http://www.nfc-forum.org/specs/
-	         *
-	         * bit_7 defines encoding
-	         * bit_6 reserved for future use, must be 0
-	         * bit_5..0 length of IANA language code
-	         */
-	        byte[] payload = record.getPayload();
-	        // Get the Text Encoding
-	        String textEncoding = ((payload[0] & 128) == 0) ? "UTF-8" : "UTF-16";
-	        // Get the Language Code
-	        int languageCodeLength = payload[0] & 0063;
-	        // String languageCode = new String(payload, 1, languageCodeLength, "US-ASCII");
-	        // e.g. "en"
-	        // Get the Text
-	        return new String(payload, languageCodeLength + 1, payload.length - languageCodeLength - 1, textEncoding);
-	    }
-	    @Override
-	    protected void onPostExecute(String result) {
-	        // if (result != null) {
-	        // }
-	    }
-	}
-	
-	
-	public static void setupForegroundDispatch(final Activity activity, NfcAdapter adapter) {
-		if (adapter == null) return;
-        final Intent intent = new Intent(activity.getApplicationContext(), activity.getClass());
-        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        final PendingIntent pendingIntent = PendingIntent.getActivity(activity.getApplicationContext(), 0, intent, 0);
-        IntentFilter[] filters = new IntentFilter[1];
-        String[][] techList = new String[][]{};
-        // Notice that this is the same filter as in our manifest.
-        filters[0] = new IntentFilter();
-        filters[0].addAction(NfcAdapter.ACTION_NDEF_DISCOVERED);
-        filters[0].addCategory(Intent.CATEGORY_DEFAULT);
-        try {
-            filters[0].addDataType(MIME_TEXT_PLAIN);
-        } catch (MalformedMimeTypeException e) {
-            throw new RuntimeException("Check your mime type.");
+    @Override
+    public boolean onOptionsItemSelected(final MenuItem item) {
+        super.onOptionsItemSelected(item);
+        switch (item.getItemId()) {
+            case R.id.menu_settings: {
+                final Intent i;
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
+                    i = new Intent(this, PreferencesActivity.class);
+                } else {
+                    i = new Intent(this, FragmentPreferences.class);
+                }
+                startActivityForResult(i, SHOW_PREFERENCES);
+                return true;
+            }
+            case R.id.reload: {
+                new OpenConnection().execute();
+                return true;
+            }
         }
-        adapter.enableForegroundDispatch(activity, pendingIntent, filters, techList);
+        return false;
     }
 
-	@Override
-	protected void onListItemClick(ListView l, View v, int position, long id) {
+    private void updateFromPreferences() {
+        final Context context = getApplicationContext();
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        mAgoHostname = prefs.getString(PreferencesActivity.PREF_AGOCONTROL_HOSTNAME, "");
+        mAgoPort = prefs.getString(PreferencesActivity.PREF_AGOCONTROL_PORT, "8008");
 
-        final AgoDevice myDevice = deviceList.get(position);
-        Log.i(TAG, "clicked uuid " + myDevice.uuid.toString());
+    }
+
+    public void onActivtyResult(final int requestCode, final int resultCode, final Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == SHOW_PREFERENCES) {
+            updateFromPreferences();
+        }
+
+    }
+
+    private class OpenConnection extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(final Void... params) {
+            if (TextUtils.isEmpty(mAgoHostname)) {
+                Log.w(TAG, "Not executing command; empty hostname");
+
+                return null;
+            }
+
+            Log.i(TAG, "Trying connection to " + mAgoHostname + ':' + mAgoPort);
+            mConnection = new AgoConnection(mAgoHostname, mAgoPort);
+            try {
+                deviceList = mConnection.getDeviceList();
+            } catch (final JSONRPCException | JSONException e) {
+                Log.e(TAG, "Error making network request", e);
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(final Void result) {
+            final boolean hideUnknownDevices =
+                    PreferenceManager.getDefaultSharedPreferences(MainActivity.this)
+                            .getBoolean(PreferencesActivity.PREF_HIDE_UNKNOWN_DEVICES, true);
+
+            deviceAdapter = new DeviceAdapter(MainActivity.this, deviceList,
+                    hideUnknownDevices ? new DeviceFilterHideUnknown() : null);
+            setListAdapter(deviceAdapter);
+
+            if (progDlg != null) {
+                progDlg.dismiss();
+            }
+            progDlg = null;
+
+            Log.i(TAG, deviceList.size() + " devices returned");
+        }
+
+        @Override
+        protected void onPreExecute() {
+            if (progDlg == null) {
+                progDlg = ProgressDialog.show(MainActivity.this, null, getString(R.string.opening_connection), true, true);
+            } else {
+                progDlg.show();
+            }
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        stopForegroundDispatch(this, mNfcAdapter);
+        super.onPause();
+    }
+
+    public static void stopForegroundDispatch(final Activity activity, final NfcAdapter adapter) {
+        if (adapter != null) {
+            adapter.disableForegroundDispatch(activity);
+        }
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mNfcAdapter != null) {
+            NdefReaderTask.setupForegroundDispatch(this, mNfcAdapter);
+        }
+        new OpenConnection().execute();
+    }
+
+    @Override
+    protected void onNewIntent(final Intent intent) {
+        handleIntent(intent);
+    }
+
+    private void handleIntent(final Intent intent) {
+        final String action = intent.getAction();
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
+            final String type = intent.getType();
+            if (MIME_TEXT_PLAIN.equals(type)) {
+                final Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+                new NdefReaderTask(mConnection).execute(tag);
+            } else {
+                Log.d(TAG, "Wrong mime type: " + type);
+            }
+        } else if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(action)) {
+            // In case we would still use the Tech Discovered Intent
+            final Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            final String[] techList = tag.getTechList();
+            final String searchedTech = Ndef.class.getName();
+            for (final String tech : techList) {
+                if (searchedTech.equals(tech)) {
+                    new NdefReaderTask(mConnection).execute(tag);
+                    break;
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void onListItemClick(final ListView l, final View v, final int position, final long id) {
+
+        final AgoDevice myDevice = deviceAdapter.getItem(position);
+        Log.i(TAG, "clicked uuid " + myDevice.uuid);
         final Dialog dialog = new Dialog(MainActivity.this);
         dialog.setTitle(myDevice.getName());
         dialog.setContentView(R.layout.device_control_dlg);
@@ -324,63 +269,68 @@ public class MainActivity extends ListActivity {
 
         } else if (myDevice.deviceType.equalsIgnoreCase("dimmer")) {
             llOnOff.setVisibility(View.VISIBLE);
-        	 flDimmer.setVisibility(View.VISIBLE);
-        	 btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
-        	 btnOff.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
-        	 
-        	 sbSetLevel.setOnSeekBarChangeListener(new AgoDeviceSetLevelListener(myDevice));
-        	 
-         } else if (myDevice.deviceType.equalsIgnoreCase("camera")) {
-        	 llCamera.setVisibility(View.VISIBLE);
-        	 btnGetVideoFrame.setOnClickListener(new View.OnClickListener() {
-			
-				@Override
-				public void onClick(View v) {
-                    new getVideoFrame().execute((Context) MainActivity.this, myDevice);
+            flDimmer.setVisibility(View.VISIBLE);
+            btnOn.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
+            btnOff.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
+
+            sbSetLevel.setOnSeekBarChangeListener(new AgoDeviceSetLevelListener(myDevice));
+
+        } else if (myDevice.deviceType.equalsIgnoreCase("camera")) {
+            llCamera.setVisibility(View.VISIBLE);
+            btnGetVideoFrame.setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(final View v) {
+                    new getVideoFrame().execute(MainActivity.this, myDevice);
                 }
-			});
-         } else if (myDevice.deviceType.equalsIgnoreCase("scenario")) {
-        	 btnRunScenario.setVisibility(View.VISIBLE);
-        	 btnRunScenario.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
-         }
-         
-         
-         
+            });
+        } else if (myDevice.deviceType.equalsIgnoreCase("scenario")) {
+            btnRunScenario.setVisibility(View.VISIBLE);
+            btnRunScenario.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
+        }
+
+
 //         Button button_on = (Button)dialog.findViewById(R.id.button_on);
 //         button_on.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "on"));
 //         Button button_off = (Button)dialog.findViewById(R.id.button_off);
 //         button_off.setOnClickListener(new AgoDeviceOnClickListener(myDevice, "off"));
-         dialog.show();
-	}
-	
-	private class getVideoFrame extends AsyncTask <Object, Void, Bitmap> {
+        dialog.show();
+    }
 
-		@Override
-		protected Bitmap doInBackground(Object... params) {
-			final AgoWebcamFrameRetriever awfr = new AgoWebcamFrameRetriever((Context)params[0], (AgoDevice)params[1]);
-			return awfr.getBitmap();
-		}
+    private class getVideoFrame extends AsyncTask<Object, Void, Bitmap> {
 
-		@Override
-		protected void onPostExecute(Bitmap result) {
-			super.onPostExecute(result);
-			if (progDlg != null) {
-				progDlg.dismiss();
-			}
-			progDlg = null;
-			mVideoFrame.setImageBitmap(result);
-		}
+        @Override
+        protected Bitmap doInBackground(final Object... params) {
+            final AgoWebcamFrameRetriever awfr = new AgoWebcamFrameRetriever((Context) params[0], (AgoDevice) params[1]);
+            return awfr.getBitmap();
+        }
 
-		@Override
-		protected void onPreExecute() {
-			if (progDlg == null) {
-				progDlg = ProgressDialog.show(MainActivity.this, null, getString(R.string.retrieving_video_frame), true, true);
-			} else {
-				progDlg.show();
-			}
-		}
+        @Override
+        protected void onPostExecute(final Bitmap result) {
+            super.onPostExecute(result);
+            if (progDlg != null) {
+                progDlg.dismiss();
+            }
+            progDlg = null;
+            mVideoFrame.setImageBitmap(result);
+        }
 
-		
-	}
-	
+        @Override
+        protected void onPreExecute() {
+            if (progDlg == null) {
+                progDlg = ProgressDialog.show(MainActivity.this, null, getString(R.string.retrieving_video_frame), true, true);
+            } else {
+                progDlg.show();
+            }
+        }
+
+
+    }
+
+    private static class DeviceFilterHideUnknown implements DeviceAdapter.DeviceFilter {
+        @Override
+        public boolean isDeviceShown(final AgoDevice device) {
+            return DeviceAdapter.ICON_MAPPING.containsKey(device.deviceType);
+        }
+    }
 }
